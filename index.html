@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 视口设置：禁止缩放，适配刘海屏，锁定宽高等比 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>魔法滴管实验室</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -10,24 +11,32 @@
         
         :root {
             --panel-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: #64748b;
         }
 
+        /* 全局样式重置与移动端适配 */
         body {
-            font-family: 'ZCOOL+KuaiLe', -apple-system, sans-serif;
+            font-family: 'ZCOOL+KuaiLe', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #fdf6e3 0%, #fae8ff 100%);
             min-height: 100vh;
+            /* 禁止下拉刷新和边缘回弹 */
             overscroll-behavior: none;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
+            /* 禁止系统级触摸操作，交由 JS 接管 */
             touch-action: none;
+            /* 禁止文本选择和高亮 */
             -webkit-user-select: none;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            /* 底部安全区适配 */
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        /* 魔法背景粒子 */
+        /* ---------------- UI 组件样式 (保持不变) ---------------- */
+
         .magic-particle {
             position: absolute;
             pointer-events: none;
@@ -36,6 +45,7 @@
             z-index: 0;
             animation: float-particle 10s infinite linear;
             opacity: 0.3;
+            will-change: transform;
         }
         @keyframes float-particle {
             0% { transform: translateY(110vh) translateX(0); }
@@ -44,9 +54,10 @@
 
         .magic-table {
             background: var(--panel-bg);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px); /* iOS 支持 */
             border: 4px solid white;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
             border-radius: 40px;
             z-index: 10;
             width: 90vw;
@@ -55,18 +66,114 @@
             margin-top: 1rem;
         }
 
-        .lab-beaker {
+        .beaker-container {
             position: relative;
-            width: 140px;
+            width: 160px;
+            height: 180px;
+            margin: 0 auto;
+            perspective: 500px;
+            /* 移除 transition 以配合 JS 弹性动画 */
+            transform-origin: center bottom;
+        }
+
+        /* 准备状态：鼠标/手指悬停时 */
+        .beaker-container.ready {
+            transform: scale(1.1);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .beaker-glass {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 130px;
             height: 160px;
-            border: 6px solid #4a5568;
+            background: rgba(255,255,255,0.2);
+            border: 4px solid var(--glass-border);
             border-top: none;
-            border-bottom-left-radius: 40px;
-            border-bottom-right-radius: 40px;
-            background: rgba(255, 255, 255, 0.4);
+            border-bottom-left-radius: 30px;
+            border-bottom-right-radius: 30px;
             overflow: hidden;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transform: translateZ(0);
+            z-index: 2;
+            box-shadow: inset -5px 0 15px rgba(255,255,255,0.4);
+        }
+
+        .beaker-glass::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 15px;
+            width: 8px;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.5), transparent);
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .beaker-rim {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 140px;
+            height: 14px;
+            border: 4px solid var(--glass-border);
+            background: white;
+            border-radius: 20px;
+            z-index: 6; 
+        }
+
+        .beaker-face {
+            position: absolute;
+            top: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            z-index: 5;
+            opacity: 0.7;
+            animation: face-float 4s infinite ease-in-out;
+            pointer-events: none;
+        }
+        
+        @keyframes face-float {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(4px); }
+        }
+
+        .eyes-row { display: flex; gap: 24px; }
+
+        .beaker-eye {
+            width: 8px;
+            height: 8px;
+            background: #475569;
+            border-radius: 50%;
+            animation: beaker-blink 4s infinite;
+        }
+
+        .beaker-mouth {
+            width: 14px;
+            height: 8px;
+            border-bottom: 3px solid #475569;
+            border-radius: 0 0 10px 10px;
+            transition: all 0.3s;
+        }
+
+        /* 准备状态下嘴巴变圆 */
+        .ready .beaker-mouth {
+            width: 10px;
+            height: 10px;
+            border: 3px solid #475569;
+            border-radius: 50%;
+            background: transparent;
+        }
+
+        @keyframes beaker-blink { 
+            0%, 90%, 100% { transform: scaleY(1); } 
+            95% { transform: scaleY(0.1); } 
         }
 
         .liquid {
@@ -76,95 +183,107 @@
             width: 100%;
             height: 5%;
             transition: height 1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.8s ease;
+            box-shadow: inset 0 5px 15px rgba(255,255,255,0.2);
+            will-change: height, background-color;
         }
 
-        .liquid::after {
+        .liquid::before {
             content: "";
             position: absolute;
-            top: -10px;
-            left: -50%;
-            width: 200%;
-            height: 20px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
             background: rgba(255,255,255,0.3);
-            border-radius: 40%;
-            animation: wave 3s infinite linear;
+            filter: blur(2px);
         }
 
-        @keyframes wave { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .liquid-bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: bubble-rise 2s ease-out forwards;
+        }
 
-        /* 精灵动画 */
+        @keyframes bubble-rise {
+            0% { transform: translateY(0) scale(0.3); opacity: 0; }
+            20% { opacity: 0.8; }
+            100% { transform: translateY(-80px) scale(1.2); opacity: 0; }
+        }
+
+        /* 怪物精灵样式 */
         .monster-wrapper {
             cursor: grab;
             touch-action: none;
-            transform: translateZ(0);
+            transform: translateZ(0); /* 开启硬件加速 */
             transition: transform 0.2s;
+            -webkit-touch-callout: none; /* 禁止iOS长按菜单 */
+            -webkit-user-drag: none; /* 禁止原生拖拽 */
         }
-
-        .monster-red { animation: m-jump 2.5s infinite; }
+        
+        .monster-red { animation: m-jump 2.5s infinite, m-red-heartbeat 2s infinite ease-in-out; }
         .monster-yellow { animation: m-pudding 3s infinite; transform-origin: bottom center; }
         .monster-blue { animation: m-sway 4.5s infinite; }
 
-        @keyframes m-jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        @keyframes m-pudding { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.1, 0.9); } }
-        @keyframes m-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+        @keyframes m-jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes m-red-heartbeat { 0%, 100% { transform: scale(0.88); } 50% { transform: scale(0.93); } }
+        @keyframes m-pudding { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.15, 0.85); } }
+        @keyframes m-sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
 
-        .monster-eye {
-            animation: blink 4s infinite;
-            transform-origin: center;
-        }
+        .monster-eye { animation: blink 4s infinite; transform-origin: center; }
         @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
 
+        /* 拖拽态样式 */
         .dragging {
             transform: scale(1.4) !important;
             opacity: 0.9;
             z-index: 1000 !important;
-            pointer-events: none;
-            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));
+            pointer-events: none; /* 防止遮挡下方元素检测 */
+            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.2));
+            transition: none !important; /* 拖拽时移除过渡，消除延迟感 */
+            will-change: left, top;
         }
 
         .dropper {
             position: absolute;
-            top: -60px;
+            top: -50px;
             left: 50%;
             transform: translateX(-50%) translateY(-20px);
             opacity: 0;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             pointer-events: none;
+            z-index: 20;
         }
         .dropper.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
         .water-drop {
             position: absolute;
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 0 50% 50% 50%;
             transform: rotate(45deg);
             animation: drip-down 0.6s ease-in forwards;
+            z-index: 15;
+            box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1);
         }
-
         @keyframes drip-down {
             0% { transform: translateY(0) rotate(45deg); }
-            100% { transform: translateY(130px) rotate(45deg) scale(0); }
+            100% { transform: translateY(145px) rotate(45deg) scale(0); }
         }
-
-        .bubble {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            animation: rise 1s forwards ease-out;
-        }
-        @keyframes rise { to { transform: translateY(-100px) scale(0); opacity: 0; } }
     </style>
 </head>
-<body>
+<!-- 禁止右键菜单，提升 App 质感 -->
+<body oncontextmenu="return false;">
 
-    <header class="text-center mt-8 mb-4">
-        <h1 class="text-2xl font-black text-orange-600 tracking-tight">✨ 魔法滴管实验室 ✨</h1>
+    <header class="text-center mt-8 mb-4 select-none">
+        <h1 class="text-2xl font-black text-orange-600 tracking-tight mb-2">✨ 魔法滴管实验室 ✨</h1>
         <p class="text-orange-400 text-sm font-bold opacity-80">拖动 Q 萌精灵，调配彩色魔法！</p>
     </header>
 
     <main class="magic-table">
-        <div class="relative w-full flex justify-center mb-6 h-44">
+        <div class="relative w-full flex justify-center mb-6 h-48 select-none">
             <div id="dropper" class="dropper">
                 <svg width="30" height="70" viewBox="0 0 40 100">
                     <rect x="16" y="25" width="8" height="55" fill="#e2e8f0" rx="4" />
@@ -173,85 +292,105 @@
                 </svg>
             </div>
 
-            <div class="lab-beaker" id="beaker">
-                <div id="liquid" class="liquid" style="background-color: #f1f5f9;"></div>
+            <!-- 烧杯容器 -->
+            <div class="beaker-container" id="beaker">
+                <div class="beaker-rim"></div>
+                <div class="beaker-glass">
+                    <div class="beaker-face">
+                        <div class="eyes-row">
+                            <div class="beaker-eye"></div>
+                            <div class="beaker-eye"></div>
+                        </div>
+                        <div class="beaker-mouth"></div>
+                    </div>
+                    <div id="liquid" class="liquid" style="background-color: #f8fafc;"></div>
+                </div>
             </div>
         </div>
 
-        <div id="result-text" class="text-center font-bold text-gray-500 mb-6 h-12 flex items-center justify-center leading-tight">
+        <div id="result-text" class="text-center font-bold text-gray-500 mb-6 h-12 flex items-center justify-center leading-tight select-none">
             快快快！<br>拖个颜色进来吧！
         </div>
 
-        <div class="flex justify-around items-end w-full" id="color-palette">
-            <!-- 红精灵 -->
+        <!-- 颜色精灵选择区 -->
+        <div class="flex justify-around items-end w-full select-none" id="color-palette">
             <div class="flex flex-col items-center">
                 <div draggable="true" data-color="red" data-hex="#ef4444" class="monster-wrapper monster-red w-16 h-16">
                     <svg viewBox="0 0 100 100">
-                        <circle cx="50" cy="55" r="35" fill="#ef4444" />
-                        <circle class="monster-eye" cx="40" cy="50" r="5" fill="white" />
-                        <circle class="monster-eye" cx="60" cy="50" r="5" fill="white" />
-                        <circle cx="40" cy="50" r="2" fill="black" />
-                        <circle cx="60" cy="50" r="2" fill="black" />
-                        <path d="M45 68 Q50 72 55 68" stroke="white" stroke-width="2" fill="none" />
+                        <defs><radialGradient id="redGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:#ff6b6b"/><stop offset="100%" style="stop-color:#ef4444"/></radialGradient></defs>
+                        <path d="M50 25 Q55 10 65 15" stroke="#b91c1c" stroke-width="3" fill="none" stroke-linecap="round" />
+                        <circle cx="65" cy="15" r="3" fill="#ff6b6b" />
+                        <ellipse cx="50" cy="58" rx="40" ry="36" fill="url(#redGrad)" />
+                        <path d="M25 45 Q35 35 55 38" stroke="white" stroke-width="4" fill="none" opacity="0.3" stroke-linecap="round" />
+                        <g class="monster-eye"><circle cx="40" cy="52" r="7.5" fill="white"/><circle cx="60" cy="52" r="7.5" fill="white"/><circle cx="40" cy="53" r="4.5" fill="#450a0a"/><circle cx="60" cy="53" r="4.5" fill="#450a0a"/></g>
+                        <path d="M45 74 Q50 79 55 74" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
                     </svg>
                 </div>
                 <span class="text-red-500 text-xs mt-1 font-bold">红精灵</span>
             </div>
-            <!-- 黄精灵 -->
+
             <div class="flex flex-col items-center">
                 <div draggable="true" data-color="yellow" data-hex="#fbbf24" class="monster-wrapper monster-yellow w-16 h-16">
                     <svg viewBox="0 0 100 100">
-                        <path d="M25 80 Q20 80 20 75 L22 45 Q22 35 35 35 L65 35 Q78 35 78 45 L80 75 Q80 80 75 80 Z" fill="#fbbf24" />
-                        <circle class="monster-eye" cx="40" cy="55" r="6" fill="white" />
-                        <circle class="monster-eye" cx="60" cy="55" r="6" fill="white" />
-                        <circle cx="40" cy="55" r="3" fill="black" />
-                        <circle cx="60" cy="55" r="3" fill="black" />
+                        <ellipse cx="15" cy="65" r="8" ry="5" fill="#fcd34d" transform="rotate(-20 15 65)" />
+                        <ellipse cx="85" cy="65" r="8" ry="5" fill="#fcd34d" transform="rotate(20 85 65)" />
+                        <path d="M22 85 Q20 85 20 80 L23 45 Q25 30 50 30 Q75 30 77 45 L80 80 Q80 85 78 85 Z" fill="#fbbf24" />
+                        <g class="monster-eye"><circle cx="40" cy="58" r="8" fill="white"/><circle cx="60" cy="58" r="8" fill="white"/><circle cx="40" cy="58" r="4.5" fill="#451a03"/><circle cx="60" cy="58" r="4.5" fill="#451a03"/></g>
+                        <circle cx="50" cy="72" r="3.5" fill="#92400e" />
                     </svg>
                 </div>
                 <span class="text-yellow-600 text-xs mt-1 font-bold">黄精灵</span>
             </div>
-            <!-- 蓝精灵 -->
+
             <div class="flex flex-col items-center">
                 <div draggable="true" data-color="blue" data-hex="#3b82f6" class="monster-wrapper monster-blue w-16 h-16">
                     <svg viewBox="0 0 100 100">
-                        <path d="M20 80 Q20 30 50 30 Q80 30 80 80 Z" fill="#3b82f6" />
-                        <circle class="monster-eye" cx="50" cy="55" r="10" fill="white" />
-                        <circle cx="50" cy="55" r="5" fill="black" />
-                        <circle cx="50" cy="22" r="5" fill="#3b82f6" />
-                        <line x1="50" y1="22" x2="50" y2="35" stroke="#3b82f6" stroke-width="3" />
+                        <defs><radialGradient id="blueGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:#60a5fa"/><stop offset="100%" style="stop-color:#3b82f6"/></radialGradient></defs>
+                        <line x1="50" y1="20" x2="50" y2="35" stroke="#2563eb" stroke-width="4" stroke-linecap="round" />
+                        <circle cx="50" cy="18" r="5" fill="#60a5fa" />
+                        <path d="M50 28 C25 28 15 50 15 70 C15 85 30 92 50 92 C70 92 85 85 85 70 C85 50 75 28 50 28 Z" fill="url(#blueGrad)" />
+                        <g class="monster-eye"><circle cx="40" cy="62" r="8" fill="white"/><circle cx="60" cy="62" r="8" fill="white"/><circle cx="40" cy="63" r="4.5" fill="#1e3a8a"/><circle cx="60" cy="63" r="4.5" fill="#1e3a8a"/></g>
+                        <path d="M46 78 Q50 82 54 78" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
                     </svg>
                 </div>
                 <span class="text-blue-600 text-xs mt-1 font-bold">蓝精灵</span>
             </div>
         </div>
 
-        <button onclick="resetLab()" class="mt-8 w-full bg-orange-400 text-white py-3 rounded-2xl font-bold shadow-[0_4px_0_#c2410c] active:shadow-none active:translate-y-1 transition-all">
+        <button onclick="resetLab()" class="mt-8 w-full bg-orange-400 text-white py-3 rounded-2xl font-bold shadow-[0_4px_0_#c2410c] active:shadow-none active:translate-y-1 transition-all select-none touch-manipulation">
             🧹 清理实验室
         </button>
     </main>
 
-    <footer class="mt-6 w-[90vw] max-w-[320px] p-4 bg-white/40 border border-white/60 rounded-2xl text-xs text-gray-500 shadow-sm">
+    <footer class="mt-6 w-[90vw] max-w-[320px] p-4 bg-white/40 border border-white/60 rounded-2xl text-xs text-gray-500 shadow-sm select-none">
         <p class="font-bold mb-1">🪄 调色口诀：</p>
-        <p>❤️ + 💛 = 🧡 橙色 (大橘子)</p>
-        <p>💛 + 💙 = 💚 绿色 (小青草)</p>
-        <p>❤️ + 💙 = 💜 紫色 (甜葡萄)</p>
+        <p>❤️ + 💛 = 🧡 橙色 | 💛 + 💙 = 💚 绿色 | ❤️ + 💙 = 💜 紫色</p>
     </footer>
 
     <script>
+        // ---------------- 核心状态管理 ----------------
         let currentColors = { red: false, yellow: false, blue: false };
+        let isAnimating = false;
+        let bubbleInterval = null;
+        
+        // 拖拽状态
+        let draggedEl = null;
+        let offset = { x: 0, y: 0 }; // 记录手指相对元素中心的偏移
+
+        // DOM 元素
         const liquid = document.getElementById('liquid');
         const resultText = document.getElementById('result-text');
         const beaker = document.getElementById('beaker');
+        const beakerInner = beaker.querySelector('.beaker-glass');
         const dropper = document.getElementById('dropper');
         const dropperColor = document.getElementById('dropper-color');
         const monsters = document.querySelectorAll('.monster-wrapper');
 
-        let draggedEl = null;
-        let isAnimating = false;
-        let offset = { x: 0, y: 0 };
-
-        // 背景粒子生成
+        // ---------------- 初始化 ----------------
+        
+        // 背景粒子
         function createParticles() {
+            const frag = document.createDocumentFragment();
             for (let i = 0; i < 8; i++) {
                 const p = document.createElement('div');
                 p.className = 'magic-particle';
@@ -260,156 +399,233 @@
                 p.style.background = ['#ff9a9e', '#fad0c4', '#a1c4fd', '#c2e9fb'][i % 4];
                 p.style.left = Math.random() * 100 + 'vw';
                 p.style.animationDelay = Math.random() * 5 + 's';
-                document.body.appendChild(p);
+                frag.appendChild(p);
             }
+            document.body.appendChild(frag);
         }
         createParticles();
 
-        // 桌面端支持
+        // ---------------- 辅助函数 ----------------
+
+        // 碰撞检测 (AABB)
+        function checkCollision(rect1, rect2) {
+            return !(rect1.right < rect2.left || 
+                     rect1.left > rect2.right || 
+                     rect1.bottom < rect2.top || 
+                     rect1.top > rect2.bottom);
+        }
+
+        // 手机震动反馈 (最佳实践: 检查支持性)
+        function vibrate(pattern) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
+
+        // ---------------- 事件监听 ----------------
+
+        // PC端 Mouse Drag API
         monsters.forEach(m => {
             m.addEventListener('dragstart', (e) => {
                 if(isAnimating) { e.preventDefault(); return; }
-                draggedEl = e.currentTarget;
-                e.dataTransfer.setData('color', draggedEl.dataset.color);
-                e.dataTransfer.setData('hex', draggedEl.dataset.hex);
+                e.dataTransfer.setData('color', e.currentTarget.dataset.color);
+                e.dataTransfer.setData('hex', e.currentTarget.dataset.hex);
             });
         });
 
-        beaker.addEventListener('dragover', e => {
-            e.preventDefault();
-            beaker.style.transform = 'scale(1.1)';
-        });
-        beaker.addEventListener('dragleave', () => beaker.style.transform = 'scale(1)');
+        beaker.addEventListener('dragenter', () => beaker.classList.add('ready'));
+        beaker.addEventListener('dragleave', () => beaker.classList.remove('ready'));
+        beaker.addEventListener('dragover', e => e.preventDefault());
         beaker.addEventListener('drop', e => {
             e.preventDefault();
-            beaker.style.transform = 'scale(1)';
+            beaker.classList.remove('ready');
             handleDrop(e.dataTransfer.getData('color'), e.dataTransfer.getData('hex'));
         });
 
-        // 移动端支持
+        // 移动端 Touch API (深度适配 iOS/Android)
         monsters.forEach(m => {
             m.addEventListener('touchstart', e => {
-                if (isAnimating) return;
-                draggedEl = e.currentTarget;
+                if (isAnimating) return; // 动画中禁止操作
+                
                 const touch = e.touches[0];
+                draggedEl = e.currentTarget;
                 const rect = draggedEl.getBoundingClientRect();
+                
+                // 计算手指点击位置相对于元素中心的偏移
+                // 这样元素不会瞬移，而是跟随手指相对移动
                 offset.x = touch.clientX - rect.left;
                 offset.y = touch.clientY - rect.top;
+                
+                // 切换为 fixed 定位，使其脱离文档流，在最上层
                 draggedEl.classList.add('dragging');
-                e.preventDefault();
+                draggedEl.style.position = 'fixed';
+                draggedEl.style.left = rect.left + 'px';
+                draggedEl.style.top = rect.top + 'px';
+                draggedEl.style.width = rect.width + 'px'; // 锁定宽度防止变形
+                
+                vibrate(10); // 轻微震动反馈
+                e.preventDefault(); // 阻止滚动和长按菜单
             }, {passive: false});
 
             m.addEventListener('touchmove', e => {
                 if (!draggedEl) return;
                 const touch = e.touches[0];
-                draggedEl.style.position = 'fixed';
-                draggedEl.style.left = `${touch.clientX - offset.x}px`;
-                draggedEl.style.top = `${touch.clientY - offset.y}px`;
+                
+                // 跟随手指移动
+                const x = touch.clientX - offset.x;
+                const y = touch.clientY - offset.y;
+                draggedEl.style.left = `${x}px`;
+                draggedEl.style.top = `${y}px`;
 
+                // 实时碰撞检测反馈
                 const bRect = beaker.getBoundingClientRect();
-                if (touch.clientX > bRect.left && touch.clientX < bRect.right &&
-                    touch.clientY > bRect.top && touch.clientY < bRect.bottom) {
-                    beaker.style.transform = 'scale(1.15)'; // 手机端稍微放大明显一点
+                const mRect = draggedEl.getBoundingClientRect();
+                
+                if (checkCollision(mRect, bRect)) {
+                    beaker.classList.add('ready');
                 } else {
-                    beaker.style.transform = 'scale(1)';
+                    beaker.classList.remove('ready');
                 }
-                e.preventDefault();
+                
+                e.preventDefault(); // 阻止屏幕滚动
             }, {passive: false});
 
-            m.addEventListener('touchend', e => {
+            const endDrag = (e) => {
                 if (!draggedEl) return;
-                const touch = e.changedTouches[0];
+                
                 const bRect = beaker.getBoundingClientRect();
-
-                if (touch.clientX > bRect.left && touch.clientX < bRect.right &&
-                    touch.clientY > bRect.top && touch.clientY < bRect.bottom) {
-                    handleDrop(draggedEl.dataset.color, draggedEl.dataset.hex);
-                }
-
+                const mRect = draggedEl.getBoundingClientRect();
+                
+                // 清理状态
+                beaker.classList.remove('ready');
                 draggedEl.classList.remove('dragging');
                 draggedEl.style.position = '';
                 draggedEl.style.left = '';
                 draggedEl.style.top = '';
-                beaker.style.transform = 'scale(1)';
+                draggedEl.style.width = '';
+                
+                // 触发逻辑
+                if (checkCollision(mRect, bRect)) {
+                    handleDrop(draggedEl.dataset.color, draggedEl.dataset.hex);
+                }
+                
                 draggedEl = null;
-            });
+            };
+
+            m.addEventListener('touchend', endDrag);
+            m.addEventListener('touchcancel', endDrag); // 处理意外中断
         });
+
+        // ---------------- 业务逻辑 ----------------
 
         function handleDrop(color, hex) {
             if (!color || currentColors[color] || isAnimating) return;
             isAnimating = true;
+            vibrate(30);
 
+            // 1. 滴管准备并滑入
             dropperColor.setAttribute('fill', hex);
             dropper.classList.add('show');
-
+            
             setTimeout(() => {
+                // 2. 产生水滴并落下
                 const drop = document.createElement('div');
                 drop.className = 'water-drop';
                 drop.style.backgroundColor = hex;
                 drop.style.left = '50%';
-                drop.style.marginLeft = '-6px';
+                drop.style.marginLeft = '-7px';
                 beaker.appendChild(drop);
-
+                
                 setTimeout(() => {
                     drop.remove();
                     currentColors[color] = true;
                     updateUI();
-                    createBubbles();
+                    startBubblingEffect();
+                    vibrate([20, 50, 20]); // 滴入时的震动反馈
+                    
+                    // 3. 颜色接触后的缩放反馈（Duang的一下）
+                    // 使用 Web Animation API 确保比 CSS transition 更精准
+                    beaker.animate([
+                        { transform: 'scale(1)' },
+                        { transform: 'scale(1.15) translateY(5px)' }, // 压扁一点
+                        { transform: 'scale(0.95) translateY(-5px)' }, // 弹起一点
+                        { transform: 'scale(1.05)' },
+                        { transform: 'scale(1)' }
+                    ], { 
+                        duration: 600,
+                        easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                    });
+
                     setTimeout(() => {
                         dropper.classList.remove('show');
                         isAnimating = false;
                     }, 300);
                 }, 550);
-            }, 400);
+            }, 300);
         }
 
-        function createBubbles() {
-            for(let i=0; i<8; i++) {
-                setTimeout(() => {
-                    const b = document.createElement('div');
-                    b.className = 'bubble';
-                    const s = (Math.random() * 12 + 4) + 'px';
-                    b.style.width = s; b.style.height = s;
-                    b.style.left = (Math.random() * 80 + 10) + '%';
-                    b.style.bottom = '10px';
-                    beaker.appendChild(b);
-                    setTimeout(() => b.remove(), 1000);
-                }, i * 80);
+        function startBubblingEffect() {
+            // 瞬间产生一波
+            for(let i=0; i<12; i++) {
+                setTimeout(() => createOneBubble(), i * 100);
             }
+            // 持续产生
+            if(!bubbleInterval) {
+                bubbleInterval = setInterval(() => {
+                    if(Object.values(currentColors).some(v => v)) {
+                        createOneBubble();
+                    }
+                }, 800);
+            }
+        }
+
+        function createOneBubble() {
+            const b = document.createElement('div');
+            b.className = 'liquid-bubble';
+            const size = (Math.random() * 12 + 6) + 'px';
+            b.style.width = size;
+            b.style.height = size;
+            b.style.left = (Math.random() * 70 + 15) + '%';
+            b.style.bottom = '10px';
+            b.style.animationDuration = (Math.random() * 1 + 1) + 's';
+            beakerInner.appendChild(b);
+            setTimeout(() => b.remove(), 2000);
         }
 
         function resetLab() {
             if (isAnimating) return;
             currentColors = { red: false, yellow: false, blue: false };
             updateUI();
+            if(bubbleInterval) {
+                clearInterval(bubbleInterval);
+                bubbleInterval = null;
+            }
+            vibrate(20);
         }
 
         function updateUI() {
             const { red, yellow, blue } = currentColors;
-            let hex = '#f1f5f9';
+            let hex = '#f8fafc';
             let msg = "再加点颜色进来吧！";
             const count = Object.values(currentColors).filter(Boolean).length;
-
+            
             if (count === 0) {
                 msg = "快快快！<br>拖个颜色进来吧！";
             } else if (red && yellow && blue) {
-                hex = '#3d2b1f';
-                msg = "天呐！全满了！<br>变成了【奇迹棕】！";
+                hex = '#451a03'; msg = "哇！变成酷酷的【奇迹棕】！";
             } else if (red && yellow) {
-                hex = '#f97316'; msg = "嘿！变成了【橙色】！";
+                hex = '#fb923c'; msg = "嘿！变成了【橙色】大橘子！";
             } else if (yellow && blue) {
-                hex = '#22c55e'; msg = "哇！变成了【绿色】！";
+                hex = '#4ade80'; msg = "哇！变成了【绿色】小青草！";
             } else if (red && blue) {
-                hex = '#a855f7'; msg = "瞧！变成了【紫色】！";
+                hex = '#c084fc'; msg = "瞧！变成了【紫色】甜葡萄！";
             } else {
-                if (red) hex = '#ef4444';
+                if (red) hex = '#f87171';
                 if (yellow) hex = '#fbbf24';
-                if (blue) hex = '#3b82f6';
+                if (blue) hex = '#60a5fa';
                 msg = "魔法注入中...<br>再试试加一种？";
             }
-
+            
             liquid.style.backgroundColor = hex;
-            liquid.style.height = count === 0 ? '5%' : (33 * count) + '%';
+            liquid.style.height = count === 0 ? '5%' : (30 * count) + '%';
             resultText.innerHTML = msg;
         }
     </script>
