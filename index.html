@@ -45,6 +45,22 @@
             100% { transform: translateY(-10vh) translateX(20vw); }
         }
 
+        /* 新增：拖拽时的魔法尾迹粒子 */
+        .drag-trail-particle {
+            position: fixed;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 5000; /* 在精灵下方，但在其他元素上方 */
+            animation: trail-fade 0.6s ease-out forwards;
+        }
+
+        @keyframes trail-fade {
+            0% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
         .magic-table {
             background: var(--panel-bg);
             backdrop-filter: blur(15px);
@@ -349,18 +365,22 @@
         const dropperColor = document.getElementById('dropper-color');
         const monsters = document.querySelectorAll('.monster-wrapper');
 
-        // ---------------- 核心拖拽逻辑函数 (全局作用域) ----------------
+        // ---------------- 核心拖拽逻辑函数 ----------------
 
         function updatePosition(clientX, clientY) {
             if (!draggedEl) return;
             
             // 计算新的坐标，确保手指在初始点击位置
-            // clientX/Y 是相对于视口的，fixed 定位也是相对于视口的，直接赋值即可
             const x = clientX - offset.x;
             const y = clientY - offset.y;
             
             draggedEl.style.left = `${x}px`;
             draggedEl.style.top = `${y}px`;
+
+            // 产生拖拽粒子
+            if (Math.random() > 0.6) {
+                createDragParticle(clientX, clientY, draggedEl.dataset.hex);
+            }
 
             // 实时检测碰撞
             const bRect = beaker.getBoundingClientRect();
@@ -370,6 +390,31 @@
             } else {
                 beaker.classList.remove('ready');
             }
+        }
+
+        // 创建跟随粒子的函数
+        function createDragParticle(x, y, color) {
+            const p = document.createElement('div');
+            p.className = 'drag-trail-particle';
+            p.style.backgroundColor = color;
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            
+            // 随机向后散开
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 15 + 5;
+            const tx = Math.cos(angle) * distance + 'px';
+            const ty = Math.sin(angle) * distance + 'px';
+            
+            p.style.setProperty('--tx', tx);
+            p.style.setProperty('--ty', ty);
+            
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 600);
+        }
+
+        function checkCollision(r1, r2) {
+            return !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
         }
 
         function handleStart(clientX, clientY, target) {
@@ -385,12 +430,15 @@
             draggedEl.style.width = initialRect.width + 'px';
             draggedEl.style.height = initialRect.height + 'px';
             
-            // 立即设置初始位置，防止跳动
+            // 立即设置初始位置
             draggedEl.style.left = initialRect.left + 'px';
             draggedEl.style.top = initialRect.top + 'px';
             
-            // 可以在下一帧应用样式，或者直接应用。这里为了稳妥直接添加类。
-            draggedEl.classList.add('dragging');
+            requestAnimationFrame(() => {
+                if (!draggedEl) return;
+                draggedEl.classList.add('dragging');
+                updatePosition(clientX, clientY);
+            });
             
             if (navigator.vibrate) navigator.vibrate(10);
         }
@@ -417,10 +465,6 @@
             draggedEl = null;
         }
 
-        function checkCollision(r1, r2) {
-            return !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
-        }
-
         // ---------------- 事件绑定 ----------------
 
         monsters.forEach(m => {
@@ -428,7 +472,7 @@
             m.addEventListener('touchstart', e => {
                 const touch = e.touches[0];
                 handleStart(touch.clientX, touch.clientY, e.currentTarget);
-                e.preventDefault(); // 防止滚动
+                e.preventDefault(); 
             }, { passive: false });
 
             // Mouse Events
@@ -442,7 +486,7 @@
             if (!draggedEl) return;
             const touch = e.touches[0];
             updatePosition(touch.clientX, touch.clientY);
-            e.preventDefault(); // 防止滚动
+            e.preventDefault();
         }, { passive: false });
 
         window.addEventListener('mousemove', e => {
@@ -479,8 +523,6 @@
                     startBubblingEffect();
                     if (navigator.vibrate) navigator.vibrate(20);
                     
-                    // 已移除烧杯的快速抖动动画 (beaker.animate)
-                    // 仅保留状态重置和滴管收回
                     setTimeout(() => {
                         dropper.classList.remove('show');
                         isAnimating = false;
