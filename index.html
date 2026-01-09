@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 视口设置：禁止缩放，适配刘海屏，锁定宽高等比 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>魔法滴管实验室</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,20 +14,28 @@
             --glass-border: #64748b;
         }
 
+        /* 全局样式重置与移动端适配 */
         body {
-            font-family: 'ZCOOL+KuaiLe', -apple-system, sans-serif;
+            font-family: 'ZCOOL+KuaiLe', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #fdf6e3 0%, #fae8ff 100%);
             min-height: 100vh;
+            /* 禁止下拉刷新和边缘回弹 */
             overscroll-behavior: none;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
+            /* 禁止系统级触摸操作，交由 JS 接管 */
             touch-action: none;
+            /* 禁止文本选择和高亮 */
             -webkit-user-select: none;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            /* 底部安全区适配 */
             padding-bottom: env(safe-area-inset-bottom);
         }
+
+        /* ---------------- UI 组件样式 (保持不变) ---------------- */
 
         .magic-particle {
             position: absolute;
@@ -36,6 +45,7 @@
             z-index: 0;
             animation: float-particle 10s infinite linear;
             opacity: 0.3;
+            will-change: transform;
         }
         @keyframes float-particle {
             0% { transform: translateY(110vh) translateX(0); }
@@ -45,6 +55,7 @@
         .magic-table {
             background: var(--panel-bg);
             backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px); /* iOS 支持 */
             border: 4px solid white;
             box-shadow: 0 20px 50px rgba(0,0,0,0.1);
             border-radius: 40px;
@@ -61,12 +72,14 @@
             height: 180px;
             margin: 0 auto;
             perspective: 500px;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            /* 移除 transition 以配合 JS 弹性动画 */
+            transform-origin: center bottom;
         }
 
-        /* 悬停/准备接收状态 */
+        /* 准备状态：鼠标/手指悬停时 */
         .beaker-container.ready {
-            transform: scale(1.15);
+            transform: scale(1.1);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .beaker-glass {
@@ -95,6 +108,7 @@
             height: 100%;
             background: linear-gradient(to right, transparent, rgba(255,255,255,0.5), transparent);
             z-index: 5;
+            pointer-events: none;
         }
 
         .beaker-rim {
@@ -122,6 +136,7 @@
             z-index: 5;
             opacity: 0.7;
             animation: face-float 4s infinite ease-in-out;
+            pointer-events: none;
         }
         
         @keyframes face-float {
@@ -129,10 +144,7 @@
             50% { transform: translateX(-50%) translateY(4px); }
         }
 
-        .eyes-row {
-            display: flex;
-            gap: 24px;
-        }
+        .eyes-row { display: flex; gap: 24px; }
 
         .beaker-eye {
             width: 8px;
@@ -150,12 +162,13 @@
             transition: all 0.3s;
         }
 
-        /* 准备接收时嘴巴变圆（惊讶） */
+        /* 准备状态下嘴巴变圆 */
         .ready .beaker-mouth {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border: 3px solid #475569;
             border-radius: 50%;
+            background: transparent;
         }
 
         @keyframes beaker-blink { 
@@ -171,6 +184,7 @@
             height: 5%;
             transition: height 1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.8s ease;
             box-shadow: inset 0 5px 15px rgba(255,255,255,0.2);
+            will-change: height, background-color;
         }
 
         .liquid::before {
@@ -199,13 +213,16 @@
             100% { transform: translateY(-80px) scale(1.2); opacity: 0; }
         }
 
+        /* 怪物精灵样式 */
         .monster-wrapper {
             cursor: grab;
             touch-action: none;
-            transform: translateZ(0);
+            transform: translateZ(0); /* 开启硬件加速 */
             transition: transform 0.2s;
-            -webkit-touch-callout: none;
+            -webkit-touch-callout: none; /* 禁止iOS长按菜单 */
+            -webkit-user-drag: none; /* 禁止原生拖拽 */
         }
+        
         .monster-red { animation: m-jump 2.5s infinite, m-red-heartbeat 2s infinite ease-in-out; }
         .monster-yellow { animation: m-pudding 3s infinite; transform-origin: bottom center; }
         .monster-blue { animation: m-sway 4.5s infinite; }
@@ -218,13 +235,15 @@
         .monster-eye { animation: blink 4s infinite; transform-origin: center; }
         @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
 
+        /* 拖拽态样式 */
         .dragging {
             transform: scale(1.4) !important;
             opacity: 0.9;
             z-index: 1000 !important;
-            pointer-events: none;
-            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));
-            transition: none !important;
+            pointer-events: none; /* 防止遮挡下方元素检测 */
+            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.2));
+            transition: none !important; /* 拖拽时移除过渡，消除延迟感 */
+            will-change: left, top;
         }
 
         .dropper {
@@ -255,15 +274,16 @@
         }
     </style>
 </head>
-<body>
+<!-- 禁止右键菜单，提升 App 质感 -->
+<body oncontextmenu="return false;">
 
-    <header class="text-center mt-8 mb-4">
+    <header class="text-center mt-8 mb-4 select-none">
         <h1 class="text-2xl font-black text-orange-600 tracking-tight mb-2">✨ 魔法滴管实验室 ✨</h1>
         <p class="text-orange-400 text-sm font-bold opacity-80">拖动 Q 萌精灵，调配彩色魔法！</p>
     </header>
 
     <main class="magic-table">
-        <div class="relative w-full flex justify-center mb-6 h-48">
+        <div class="relative w-full flex justify-center mb-6 h-48 select-none">
             <div id="dropper" class="dropper">
                 <svg width="30" height="70" viewBox="0 0 40 100">
                     <rect x="16" y="25" width="8" height="55" fill="#e2e8f0" rx="4" />
@@ -272,6 +292,7 @@
                 </svg>
             </div>
 
+            <!-- 烧杯容器 -->
             <div class="beaker-container" id="beaker">
                 <div class="beaker-rim"></div>
                 <div class="beaker-glass">
@@ -287,11 +308,12 @@
             </div>
         </div>
 
-        <div id="result-text" class="text-center font-bold text-gray-500 mb-6 h-12 flex items-center justify-center leading-tight">
+        <div id="result-text" class="text-center font-bold text-gray-500 mb-6 h-12 flex items-center justify-center leading-tight select-none">
             快快快！<br>拖个颜色进来吧！
         </div>
 
-        <div class="flex justify-around items-end w-full" id="color-palette">
+        <!-- 颜色精灵选择区 -->
+        <div class="flex justify-around items-end w-full select-none" id="color-palette">
             <div class="flex flex-col items-center">
                 <div draggable="true" data-color="red" data-hex="#ef4444" class="monster-wrapper monster-red w-16 h-16">
                     <svg viewBox="0 0 100 100">
@@ -335,18 +357,27 @@
             </div>
         </div>
 
-        <button onclick="resetLab()" class="mt-8 w-full bg-orange-400 text-white py-3 rounded-2xl font-bold shadow-[0_4px_0_#c2410c] active:shadow-none active:translate-y-1 transition-all">
+        <button onclick="resetLab()" class="mt-8 w-full bg-orange-400 text-white py-3 rounded-2xl font-bold shadow-[0_4px_0_#c2410c] active:shadow-none active:translate-y-1 transition-all select-none touch-manipulation">
             🧹 清理实验室
         </button>
     </main>
 
-    <footer class="mt-6 w-[90vw] max-w-[320px] p-4 bg-white/40 border border-white/60 rounded-2xl text-xs text-gray-500 shadow-sm">
+    <footer class="mt-6 w-[90vw] max-w-[320px] p-4 bg-white/40 border border-white/60 rounded-2xl text-xs text-gray-500 shadow-sm select-none">
         <p class="font-bold mb-1">🪄 调色口诀：</p>
         <p>❤️ + 💛 = 🧡 橙色 | 💛 + 💙 = 💚 绿色 | ❤️ + 💙 = 💜 紫色</p>
     </footer>
 
     <script>
+        // ---------------- 核心状态管理 ----------------
         let currentColors = { red: false, yellow: false, blue: false };
+        let isAnimating = false;
+        let bubbleInterval = null;
+        
+        // 拖拽状态
+        let draggedEl = null;
+        let offset = { x: 0, y: 0 }; // 记录手指相对元素中心的偏移
+
+        // DOM 元素
         const liquid = document.getElementById('liquid');
         const resultText = document.getElementById('result-text');
         const beaker = document.getElementById('beaker');
@@ -355,10 +386,11 @@
         const dropperColor = document.getElementById('dropper-color');
         const monsters = document.querySelectorAll('.monster-wrapper');
 
-        let isAnimating = false;
-        let bubbleInterval = null;
-
+        // ---------------- 初始化 ----------------
+        
+        // 背景粒子
         function createParticles() {
+            const frag = document.createDocumentFragment();
             for (let i = 0; i < 8; i++) {
                 const p = document.createElement('div');
                 p.className = 'magic-particle';
@@ -367,69 +399,38 @@
                 p.style.background = ['#ff9a9e', '#fad0c4', '#a1c4fd', '#c2e9fb'][i % 4];
                 p.style.left = Math.random() * 100 + 'vw';
                 p.style.animationDelay = Math.random() * 5 + 's';
-                document.body.appendChild(p);
+                frag.appendChild(p);
             }
+            document.body.appendChild(frag);
         }
         createParticles();
 
+        // ---------------- 辅助函数 ----------------
+
+        // 碰撞检测 (AABB)
+        function checkCollision(rect1, rect2) {
+            return !(rect1.right < rect2.left || 
+                     rect1.left > rect2.right || 
+                     rect1.bottom < rect2.top || 
+                     rect1.top > rect2.bottom);
+        }
+
+        // 手机震动反馈 (最佳实践: 检查支持性)
+        function vibrate(pattern) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
+
+        // ---------------- 事件监听 ----------------
+
+        // PC端 Mouse Drag API
         monsters.forEach(m => {
             m.addEventListener('dragstart', (e) => {
                 if(isAnimating) { e.preventDefault(); return; }
                 e.dataTransfer.setData('color', e.currentTarget.dataset.color);
                 e.dataTransfer.setData('hex', e.currentTarget.dataset.hex);
             });
-            
-            let draggedEl = null;
-            let startX, startY;
-            m.addEventListener('touchstart', e => {
-                if (isAnimating) return;
-                draggedEl = e.currentTarget;
-                const rect = draggedEl.getBoundingClientRect();
-                startX = e.touches[0].clientX - rect.left;
-                startY = e.touches[0].clientY - rect.top;
-                draggedEl.classList.add('dragging');
-                draggedEl.style.position = 'fixed';
-                draggedEl.style.width = rect.width + 'px';
-                e.preventDefault();
-            }, {passive: false});
-
-            m.addEventListener('touchmove', e => {
-                if (!draggedEl) return;
-                draggedEl.style.left = (e.touches[0].clientX - startX) + 'px';
-                draggedEl.style.top = (e.touches[0].clientY - startY) + 'px';
-
-                // 检测是否在烧杯上方
-                const touch = e.touches[0];
-                const bRect = beaker.getBoundingClientRect();
-                if (touch.clientX > bRect.left && touch.clientX < bRect.right &&
-                    touch.clientY > bRect.top && touch.clientY < bRect.bottom) {
-                    beaker.classList.add('ready');
-                } else {
-                    beaker.classList.remove('ready');
-                }
-            }, {passive: false});
-
-            m.addEventListener('touchend', e => {
-                if (!draggedEl) return;
-                const touch = e.changedTouches[0];
-                const bRect = beaker.getBoundingClientRect();
-                const isOver = (touch.clientX > bRect.left && touch.clientX < bRect.right &&
-                               touch.clientY > bRect.top && touch.clientY < bRect.bottom);
-                
-                beaker.classList.remove('ready'); // 确保恢复状态
-
-                if (isOver) {
-                    handleDrop(draggedEl.dataset.color, draggedEl.dataset.hex);
-                }
-                
-                draggedEl.classList.remove('dragging');
-                draggedEl.style.position = '';
-                draggedEl.style.left = ''; draggedEl.style.top = '';
-                draggedEl = null;
-            });
         });
 
-        // 桌面拖拽进入逻辑
         beaker.addEventListener('dragenter', () => beaker.classList.add('ready'));
         beaker.addEventListener('dragleave', () => beaker.classList.remove('ready'));
         beaker.addEventListener('dragover', e => e.preventDefault());
@@ -439,19 +440,93 @@
             handleDrop(e.dataTransfer.getData('color'), e.dataTransfer.getData('hex'));
         });
 
+        // 移动端 Touch API (深度适配 iOS/Android)
+        monsters.forEach(m => {
+            m.addEventListener('touchstart', e => {
+                if (isAnimating) return; // 动画中禁止操作
+                
+                const touch = e.touches[0];
+                draggedEl = e.currentTarget;
+                const rect = draggedEl.getBoundingClientRect();
+                
+                // 计算手指点击位置相对于元素中心的偏移
+                // 这样元素不会瞬移，而是跟随手指相对移动
+                offset.x = touch.clientX - rect.left;
+                offset.y = touch.clientY - rect.top;
+                
+                // 切换为 fixed 定位，使其脱离文档流，在最上层
+                draggedEl.classList.add('dragging');
+                draggedEl.style.position = 'fixed';
+                draggedEl.style.left = rect.left + 'px';
+                draggedEl.style.top = rect.top + 'px';
+                draggedEl.style.width = rect.width + 'px'; // 锁定宽度防止变形
+                
+                vibrate(10); // 轻微震动反馈
+                e.preventDefault(); // 阻止滚动和长按菜单
+            }, {passive: false});
+
+            m.addEventListener('touchmove', e => {
+                if (!draggedEl) return;
+                const touch = e.touches[0];
+                
+                // 跟随手指移动
+                const x = touch.clientX - offset.x;
+                const y = touch.clientY - offset.y;
+                draggedEl.style.left = `${x}px`;
+                draggedEl.style.top = `${y}px`;
+
+                // 实时碰撞检测反馈
+                const bRect = beaker.getBoundingClientRect();
+                const mRect = draggedEl.getBoundingClientRect();
+                
+                if (checkCollision(mRect, bRect)) {
+                    beaker.classList.add('ready');
+                } else {
+                    beaker.classList.remove('ready');
+                }
+                
+                e.preventDefault(); // 阻止屏幕滚动
+            }, {passive: false});
+
+            const endDrag = (e) => {
+                if (!draggedEl) return;
+                
+                const bRect = beaker.getBoundingClientRect();
+                const mRect = draggedEl.getBoundingClientRect();
+                
+                // 清理状态
+                beaker.classList.remove('ready');
+                draggedEl.classList.remove('dragging');
+                draggedEl.style.position = '';
+                draggedEl.style.left = '';
+                draggedEl.style.top = '';
+                draggedEl.style.width = '';
+                
+                // 触发逻辑
+                if (checkCollision(mRect, bRect)) {
+                    handleDrop(draggedEl.dataset.color, draggedEl.dataset.hex);
+                }
+                
+                draggedEl = null;
+            };
+
+            m.addEventListener('touchend', endDrag);
+            m.addEventListener('touchcancel', endDrag); // 处理意外中断
+        });
+
+        // ---------------- 业务逻辑 ----------------
+
         function handleDrop(color, hex) {
             if (!color || currentColors[color] || isAnimating) return;
             isAnimating = true;
+            vibrate(30);
 
-            // 1. 烧杯立刻放大（视觉反馈已松开并接收）
-            beaker.classList.add('ready');
-            
-            // 2. 滴管准备并滑入
+            // 1. 滴管准备并滑入
             dropperColor.setAttribute('fill', hex);
             dropper.classList.add('show');
             
             setTimeout(() => {
-                // 3. 产生水滴并落下
+                // 2. 产生水滴并落下
                 const drop = document.createElement('div');
                 drop.className = 'water-drop';
                 drop.style.backgroundColor = hex;
@@ -464,17 +539,19 @@
                     currentColors[color] = true;
                     updateUI();
                     startBubblingEffect();
+                    vibrate([20, 50, 20]); // 滴入时的震动反馈
                     
-                    // 4. 颜色接触后的缩放反馈（Duang的一下）
-                    beaker.classList.remove('ready'); // 移除静态放大
+                    // 3. 颜色接触后的缩放反馈（Duang的一下）
+                    // 使用 Web Animation API 确保比 CSS transition 更精准
                     beaker.animate([
-                        { transform: 'scale(1.15)' },
-                        { transform: 'scale(0.95) translateY(4px)' },
-                        { transform: 'scale(1.1) translateY(-6px)' },
+                        { transform: 'scale(1)' },
+                        { transform: 'scale(1.15) translateY(5px)' }, // 压扁一点
+                        { transform: 'scale(0.95) translateY(-5px)' }, // 弹起一点
+                        { transform: 'scale(1.05)' },
                         { transform: 'scale(1)' }
                     ], { 
-                        duration: 500,
-                        easing: 'ease-out'
+                        duration: 600,
+                        easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                     });
 
                     setTimeout(() => {
@@ -482,13 +559,15 @@
                         isAnimating = false;
                     }, 300);
                 }, 550);
-            }, 400);
+            }, 300);
         }
 
         function startBubblingEffect() {
+            // 瞬间产生一波
             for(let i=0; i<12; i++) {
                 setTimeout(() => createOneBubble(), i * 100);
             }
+            // 持续产生
             if(!bubbleInterval) {
                 bubbleInterval = setInterval(() => {
                     if(Object.values(currentColors).some(v => v)) {
@@ -519,6 +598,7 @@
                 clearInterval(bubbleInterval);
                 bubbleInterval = null;
             }
+            vibrate(20);
         }
 
         function updateUI() {
