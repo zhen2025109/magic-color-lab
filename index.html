@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 视口设置：禁止缩放，适配刘海屏，锁定宽高等比 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>魔法滴管实验室</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,7 +29,6 @@
             padding-bottom: env(safe-area-inset-bottom);
         }
 
-        /* 背景装饰粒子 */
         .magic-particle {
             position: absolute;
             pointer-events: none;
@@ -45,14 +43,13 @@
             100% { transform: translateY(-10vh) translateX(20vw); }
         }
 
-        /* 新增：拖拽时的魔法尾迹粒子 */
         .drag-trail-particle {
             position: fixed;
             width: 8px;
             height: 8px;
             border-radius: 50%;
             pointer-events: none;
-            z-index: 5000; /* 在精灵下方，但在其他元素上方 */
+            z-index: 5000;
             animation: trail-fade 0.6s ease-out forwards;
         }
 
@@ -75,7 +72,6 @@
             margin-top: 1rem;
         }
 
-        /* 烧杯组件 */
         .beaker-container {
             position: relative;
             width: 160px;
@@ -85,7 +81,6 @@
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* 仅在准备放入时轻微放大 */
         .beaker-container.ready {
             transform: scale(1.08);
         }
@@ -195,15 +190,15 @@
             100% { transform: translateY(-80px) scale(1.2); opacity: 0; }
         }
 
-        /* 怪物精灵样式 */
         .monster-wrapper {
             cursor: grab;
             touch-action: none;
             will-change: transform, left, top;
             -webkit-touch-callout: none;
-            position: relative; /* 确保初始定位正确 */
+            position: relative;
         }
         
+        /* 默认动画 */
         .monster-red { animation: m-jump 2.5s infinite, m-red-heartbeat 2s infinite ease-in-out; }
         .monster-yellow { animation: m-pudding 3s infinite; transform-origin: bottom center; }
         .monster-blue { animation: m-sway 4.5s infinite; }
@@ -213,16 +208,17 @@
         @keyframes m-pudding { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.15, 0.85); } }
         @keyframes m-sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
 
-        /* 拖拽态核心修正：解决跳动 */
+        /* 拖拽态：核心修正，强制覆盖所有布局属性 */
         .dragging {
             position: fixed !important;
             margin: 0 !important;
             z-index: 9999 !important;
             pointer-events: none !important;
-            transition: transform 0.1s ease-out !important; /* 极轻微跟随感 */
+            /* 立即停止所有可能导致位置偏移的动画 */
+            animation: none !important; 
             transform: scale(1.3) !important;
-            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));
-            animation: none !important; /* 拖拽时停止原本的跳动动画 */
+            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.2));
+            will-change: left, top;
         }
 
         .dropper {
@@ -299,6 +295,7 @@
         </div>
 
         <div class="flex justify-around items-end w-full" id="color-palette">
+            <!-- 精灵 1 -->
             <div class="flex flex-col items-center">
                 <div data-color="red" data-hex="#ef4444" class="monster-wrapper monster-red w-16 h-16">
                     <svg viewBox="0 0 100 100">
@@ -312,6 +309,7 @@
                 <span class="text-red-500 text-xs mt-1 font-bold">红精灵</span>
             </div>
 
+            <!-- 精灵 2 -->
             <div class="flex flex-col items-center">
                 <div data-color="yellow" data-hex="#fbbf24" class="monster-wrapper monster-yellow w-16 h-16">
                     <svg viewBox="0 0 100 100">
@@ -323,6 +321,7 @@
                 <span class="text-yellow-600 text-xs mt-1 font-bold">黄精灵</span>
             </div>
 
+            <!-- 精灵 3 -->
             <div class="flex flex-col items-center">
                 <div data-color="blue" data-hex="#3b82f6" class="monster-wrapper monster-blue w-16 h-16">
                     <svg viewBox="0 0 100 100">
@@ -349,13 +348,13 @@
     </main>
 
     <script>
-        // ---------------- 全局变量定义 ----------------
+        // ---------------- 全局状态 ----------------
         let currentColors = { red: false, yellow: false, blue: false };
         let isAnimating = false;
         let bubbleInterval = null;
         
         let draggedEl = null;
-        let offset = { x: 0, y: 0 }; // 记录手指相对元素中心的偏移
+        let offset = { x: 0, y: 0 }; // 记录相对于元素左上角的固定偏移量
 
         const liquid = document.getElementById('liquid');
         const resultText = document.getElementById('result-text');
@@ -365,24 +364,51 @@
         const dropperColor = document.getElementById('dropper-color');
         const monsters = document.querySelectorAll('.monster-wrapper');
 
-        // ---------------- 核心拖拽逻辑函数 ----------------
+        // ---------------- 修复逻辑：核心拖拽函数 ----------------
+
+        function handleStart(clientX, clientY, target) {
+            if (isAnimating || draggedEl) return;
+            draggedEl = target;
+
+            // 1. 在切换布局前获取精确的视口矩形
+            const rect = draggedEl.getBoundingClientRect();
+            
+            // 2. 锁定手指相对于元素左上角的偏移量
+            // 这样无论元素如何缩放，手指始终固定在点击时的那个点
+            offset.x = clientX - rect.left;
+            offset.y = clientY - rect.top;
+
+            // 3. 同步切换：设置宽高、位置并应用 dragging 类
+            // 关键：在这一步立即同步 left/top，防止浏览器因为 fixed 而将其跳回 (0,0)
+            draggedEl.style.width = rect.width + 'px';
+            draggedEl.style.height = rect.height + 'px';
+            draggedEl.style.left = rect.left + 'px';
+            draggedEl.style.top = rect.top + 'px';
+            
+            // 强制触发重排确保位置已写入
+            void draggedEl.offsetWidth;
+
+            draggedEl.classList.add('dragging');
+            
+            if (navigator.vibrate) navigator.vibrate(10);
+        }
 
         function updatePosition(clientX, clientY) {
             if (!draggedEl) return;
             
-            // 计算新的坐标，确保手指在初始点击位置
+            // 使用 fixed 定位，直接计算视口坐标，不考虑滚动，避免偏移
             const x = clientX - offset.x;
             const y = clientY - offset.y;
             
             draggedEl.style.left = `${x}px`;
             draggedEl.style.top = `${y}px`;
 
-            // 产生拖拽粒子
+            // 魔法拖尾
             if (Math.random() > 0.6) {
                 createDragParticle(clientX, clientY, draggedEl.dataset.hex);
             }
 
-            // 实时检测碰撞
+            // 碰撞检测
             const bRect = beaker.getBoundingClientRect();
             const mRect = draggedEl.getBoundingClientRect();
             if (checkCollision(mRect, bRect)) {
@@ -390,57 +416,6 @@
             } else {
                 beaker.classList.remove('ready');
             }
-        }
-
-        // 创建跟随粒子的函数
-        function createDragParticle(x, y, color) {
-            const p = document.createElement('div');
-            p.className = 'drag-trail-particle';
-            p.style.backgroundColor = color;
-            p.style.left = x + 'px';
-            p.style.top = y + 'px';
-            
-            // 随机向后散开
-            const angle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * 15 + 5;
-            const tx = Math.cos(angle) * distance + 'px';
-            const ty = Math.sin(angle) * distance + 'px';
-            
-            p.style.setProperty('--tx', tx);
-            p.style.setProperty('--ty', ty);
-            
-            document.body.appendChild(p);
-            setTimeout(() => p.remove(), 600);
-        }
-
-        function checkCollision(r1, r2) {
-            return !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
-        }
-
-        function handleStart(clientX, clientY, target) {
-            if (isAnimating) return;
-            draggedEl = target;
-            const initialRect = draggedEl.getBoundingClientRect();
-            
-            // 关键：计算点击点相对于元素左上角的偏移量
-            offset.x = clientX - initialRect.left;
-            offset.y = clientY - initialRect.top;
-
-            // 锁定宽高，防止 position: fixed 后变形
-            draggedEl.style.width = initialRect.width + 'px';
-            draggedEl.style.height = initialRect.height + 'px';
-            
-            // 立即设置初始位置
-            draggedEl.style.left = initialRect.left + 'px';
-            draggedEl.style.top = initialRect.top + 'px';
-            
-            requestAnimationFrame(() => {
-                if (!draggedEl) return;
-                draggedEl.classList.add('dragging');
-                updatePosition(clientX, clientY);
-            });
-            
-            if (navigator.vibrate) navigator.vibrate(10);
         }
 
         function handleEnd() {
@@ -453,6 +428,8 @@
 
             beaker.classList.remove('ready');
             draggedEl.classList.remove('dragging');
+            
+            // 重置内联样式
             draggedEl.style.position = '';
             draggedEl.style.left = '';
             draggedEl.style.top = '';
@@ -465,23 +442,40 @@
             draggedEl = null;
         }
 
-        // ---------------- 事件绑定 ----------------
+        // ---------------- 辅助功能 ----------------
+
+        function createDragParticle(x, y, color) {
+            const p = document.createElement('div');
+            p.className = 'drag-trail-particle';
+            p.style.backgroundColor = color;
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 20 + 10;
+            p.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+            p.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 600);
+        }
+
+        function checkCollision(r1, r2) {
+            return !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
+        }
+
+        // ---------------- 事件监听 ----------------
 
         monsters.forEach(m => {
-            // Touch Events
             m.addEventListener('touchstart', e => {
                 const touch = e.touches[0];
                 handleStart(touch.clientX, touch.clientY, e.currentTarget);
                 e.preventDefault(); 
             }, { passive: false });
 
-            // Mouse Events
             m.addEventListener('mousedown', e => {
                 handleStart(e.clientX, e.clientY, e.currentTarget);
             });
         });
 
-        // 全局 Move 监听
         window.addEventListener('touchmove', e => {
             if (!draggedEl) return;
             const touch = e.touches[0];
@@ -490,16 +484,13 @@
         }, { passive: false });
 
         window.addEventListener('mousemove', e => {
-            if (!draggedEl) return;
-            updatePosition(e.clientX, e.clientY);
+            if (draggedEl) updatePosition(e.clientX, e.clientY);
         });
 
-        // 全局 End 监听
         window.addEventListener('touchend', handleEnd);
-        window.addEventListener('touchcancel', handleEnd);
         window.addEventListener('mouseup', handleEnd);
 
-        // ---------------- 游戏业务逻辑 ----------------
+        // ---------------- 业务逻辑 ----------------
 
         function handleDrop(color, hex) {
             if (currentColors[color] || isAnimating) return;
@@ -533,9 +524,7 @@
 
         function startBubblingEffect() {
             for(let i=0; i<8; i++) setTimeout(createOneBubble, i * 150);
-            if(!bubbleInterval) {
-                bubbleInterval = setInterval(createOneBubble, 1000);
-            }
+            if(!bubbleInterval) bubbleInterval = setInterval(createOneBubble, 1000);
         }
 
         function createOneBubble() {
@@ -586,7 +575,7 @@
             if (navigator.vibrate) navigator.vibrate(20);
         }
 
-        // 背景粒子初始化
+        // 背景初始化
         for (let i = 0; i < 6; i++) {
             const p = document.createElement('div');
             p.className = 'magic-particle';
